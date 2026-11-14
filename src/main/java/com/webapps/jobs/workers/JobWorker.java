@@ -125,26 +125,55 @@ public class JobWorker {
 
     private Claim claimNext() {
         List<Claim> claims = jdbc.query("""
-                WITH candidate AS (
-                    SELECT e.execution_id
-                    FROM job_executions e
-                    JOIN job_definitions d ON d.job_id = e.job_id
-                    WHERE e.attempts < e.max_attempts AND (
-                        (e.status IN ('PENDING', 'RETRY') AND
-                            (e.next_retry_at IS NULL OR e.next_retry_at <= statement_timestamp()))
-                        OR (e.status = 'RUNNING' AND e.lease_until <= statement_timestamp())
+                WITH
+                    candidate AS (
+                        SELECT
+                            e.execution_id,
+                            d.target_url
+                        FROM
+                            job_executions e
+                        JOIN
+                            job_definitions d
+                        ON
+                            d.job_id = e.job_id
+                        WHERE
+                            e.attempts < e.max_attempts
+                            AND (
+                                (e.status IN ('PENDING', 'RETRY')
+                                 AND (e.next_retry_at IS NULL
+                                      OR e.next_retry_at <= statement_timestamp()))
+                                OR (e.status = 'RUNNING'
+                                    AND e.lease_until <= statement_timestamp())
+                            )
+                        ORDER BY
+                            COALESCE(e.next_retry_at, e.lease_until, e.updated_at),
+                            e.execution_id
+                        FOR UPDATE OF e
+                        SKIP LOCKED
+                        LIMIT 1
                     )
-                    ORDER BY COALESCE(e.next_retry_at, e.lease_until, e.updated_at), e.execution_id
-                    FOR UPDATE OF e SKIP LOCKED LIMIT 1
-                )
-                UPDATE job_executions e SET status = 'RUNNING', attempts = e.attempts + 1,
-                    worker_id = ?, fencing_token = COALESCE(e.fencing_token, 0) + 1,
+                UPDATE
+                    job_executions e
+                SET
+                    status = 'RUNNING',
+                    attempts = e.attempts + 1,
+                    worker_id = ?,
+                    fencing_token = COALESCE(e.fencing_token, 0) + 1,
                     lease_until = statement_timestamp() + (? * interval '1 millisecond'),
-                    next_retry_at = NULL, updated_at = statement_timestamp()
-                FROM candidate c, job_definitions d
-                WHERE e.execution_id = c.execution_id AND d.job_id = e.job_id
-                RETURNING e.execution_id, e.payload::text, e.attempts, e.max_attempts,
-                    e.fencing_token, e.external_idempotency_key, d.target_url
+                    next_retry_at = NULL,
+                    updated_at = statement_timestamp()
+                FROM
+                    candidate c
+                WHERE
+                    e.execution_id = c.execution_id
+                RETURNING
+                    e.execution_id,
+                    e.payload::text,
+                    e.attempts,
+                    e.max_attempts,
+                    e.fencing_token,
+                    e.external_idempotency_key,
+                    c.target_url
                 """,
                 (rs, row) -> new Claim(rs.getObject("execution_id", UUID.class),
                 rs.getString("payload"), rs.getInt("attempts"), rs.getInt("max_attempts"),

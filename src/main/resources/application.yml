@@ -14,7 +14,7 @@ logging:
     org.springframework.jdbc.core.JdbcTemplate: DEBUG
 jobs:
   worker:
-    enabled: ${JOBS_WORKER_ENABLED:false}
+    enabled: ${JOBS_WORKER_ENABLED:true}
     id: ${JOBS_WORKER_ID:worker-${random.uuid}}
     concurrency: ${JOBS_WORKER_CONCURRENCY:4}
     poll-interval-ms: ${JOBS_WORKER_POLL_INTERVAL_MS:1000}
