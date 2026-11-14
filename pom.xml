@@ -8,7 +8,7 @@
         <version>3.3.13</version>
         <relativePath/>
     </parent>
-    <groupId>com.example</groupId>
+    <groupId>com.webapps</groupId>
     <artifactId>jobs</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <properties>

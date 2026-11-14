@@ -1,8 +1,0 @@
-com/example/jobscheduler/worker/JobWorker$Claim.class
-com/example/jobs/JobsApplication.class
-com/example/jobs/entity/ExecutionRequest.class
-com/example/jobscheduler/worker/JobWorker.class
-com/example/jobs/JobController.class
-com/example/jobs/entity/JobRequest.class
-com/example/jobs/entity/Execution.class
-com/example/jobs/entity/Job.class

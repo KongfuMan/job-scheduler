@@ -1,0 +1,14 @@
+# Maven build output
+/target/
+
+# IDE metadata
+/.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+/.settings/
+
+# Operating system files
+.DS_Store

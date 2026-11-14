@@ -1,7 +1,0 @@
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/JobController.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/JobsApplication.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/entity/Execution.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/entity/ExecutionRequest.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/entity/Job.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobs/entity/JobRequest.java
-/Users/charles/Documents/projects/job-scheduler/src/main/java/com/example/jobscheduler/worker/JobWorker.java
