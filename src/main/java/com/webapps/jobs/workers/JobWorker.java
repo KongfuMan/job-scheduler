@@ -4,9 +4,10 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -29,6 +30,7 @@ public class JobWorker {
     private static final Logger log = LoggerFactory.getLogger(JobWorker.class);
 
     private final JdbcTemplate jdbc;
+    private final TransactionTemplate transactions;
     private final boolean enabled;
     private final String workerId;
     private final int concurrency;
@@ -44,17 +46,18 @@ public class JobWorker {
     private ScheduledExecutorService poller;
     private ScheduledExecutorService heartbeats;
 
-    public JobWorker(JdbcTemplate jdbc, Environment env) {
+    public JobWorker(JdbcTemplate jdbc, PlatformTransactionManager transactionManager, JobWorkerProperties properties) {
         this.jdbc = jdbc;
-        enabled = env.getProperty("jobs.worker.enabled", Boolean.class, true);
-        workerId = env.getProperty("jobs.worker.id", "worker-" + UUID.randomUUID());
-        concurrency = env.getProperty("jobs.worker.concurrency", Integer.class, 4);
-        pollMs = env.getProperty("jobs.worker.poll-interval-ms", Long.class, 1000L);
-        leaseMs = env.getProperty("jobs.worker.lease-ms", Long.class, 30000L);
-        heartbeatMs = env.getProperty("jobs.worker.heartbeat-interval-ms", Long.class, 10000L);
-        retryMs = env.getProperty("jobs.worker.retry-delay-ms", Long.class, 1000L);
-        maxRetryMs = env.getProperty("jobs.worker.max-retry-delay-ms", Long.class, 300000L);
-        httpTimeoutMs = env.getProperty("jobs.worker.http-timeout-ms", Long.class, 600000L);
+        transactions = new TransactionTemplate(transactionManager);
+        enabled = properties.enabled();
+        workerId = properties.id();
+        concurrency = properties.concurrency();
+        pollMs = properties.pollIntervalMs();
+        leaseMs = properties.leaseMs();
+        heartbeatMs = properties.heartbeatIntervalMs();
+        retryMs = properties.retryDelayMs();
+        maxRetryMs = properties.maxRetryDelayMs();
+        httpTimeoutMs = properties.httpTimeoutMs();
         if (workerId.isBlank() || workerId.indexOf('\0') >= 0 || workerId.codePointCount(0, workerId.length()) > 255 || concurrency < 1 || pollMs < 1 || leaseMs < 2
                 || heartbeatMs < 1 || heartbeatMs >= leaseMs || retryMs < 1
                 || maxRetryMs < retryMs || httpTimeoutMs < 1) {
@@ -77,11 +80,13 @@ public class JobWorker {
         try {
             // An expired final attempt cannot be claimed again, so terminate it separately.
             jdbc.update("""
-                    UPDATE job_executions SET status = 'FAILED', worker_id = NULL,
+                    UPDATE job_executions
+                    SET status = 'FAILED', worker_id = NULL,
                         lease_until = NULL, next_retry_at = NULL,
                         last_error = 'Lease expired after final attempt', updated_at = statement_timestamp()
-                    WHERE status = 'RUNNING' AND lease_until <= statement_timestamp()
-                        AND attempts >= max_attempts
+                    WHERE status = 'RUNNING' AND
+                          lease_until <= statement_timestamp() AND
+                          attempts >= max_attempts
                     """);
             while (slots.tryAcquire()) {
                 Claim claim;
@@ -115,9 +120,14 @@ public class JobWorker {
     }
 
     private Claim claim() {
+        return transactions.execute(status -> claimNext());
+    }
+
+    private Claim claimNext() {
         List<Claim> claims = jdbc.query("""
                 WITH candidate AS (
-                    SELECT e.execution_id FROM job_executions e
+                    SELECT e.execution_id
+                    FROM job_executions e
                     JOIN job_definitions d ON d.job_id = e.job_id
                     WHERE e.attempts < e.max_attempts AND (
                         (e.status IN ('PENDING', 'RETRY') AND
@@ -135,7 +145,8 @@ public class JobWorker {
                 WHERE e.execution_id = c.execution_id AND d.job_id = e.job_id
                 RETURNING e.execution_id, e.payload::text, e.attempts, e.max_attempts,
                     e.fencing_token, e.external_idempotency_key, d.target_url
-                """, (rs, row) -> new Claim(rs.getObject("execution_id", UUID.class),
+                """,
+                (rs, row) -> new Claim(rs.getObject("execution_id", UUID.class),
                 rs.getString("payload"), rs.getInt("attempts"), rs.getInt("max_attempts"),
                 rs.getLong("fencing_token"), rs.getString("external_idempotency_key"),
                 rs.getString("target_url")), workerId, leaseMs);

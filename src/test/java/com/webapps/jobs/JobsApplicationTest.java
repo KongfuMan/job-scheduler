@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 class JobsApplicationTest {
     @MockBean JdbcTemplate jdbc;
+    @MockBean PlatformTransactionManager transactionManager;
     @Autowired JobWorker worker;
     @Autowired JobController controller;
 

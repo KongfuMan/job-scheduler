@@ -6,5 +6,20 @@ spring:
   flyway:
     enabled: true
 server:
+  port: 8086
   error:
     include-message: always
+logging:
+  level:
+    org.springframework.jdbc.core.JdbcTemplate: DEBUG
+jobs:
+  worker:
+    enabled: ${JOBS_WORKER_ENABLED:false}
+    id: ${JOBS_WORKER_ID:worker-${random.uuid}}
+    concurrency: ${JOBS_WORKER_CONCURRENCY:4}
+    poll-interval-ms: ${JOBS_WORKER_POLL_INTERVAL_MS:1000}
+    lease-ms: ${JOBS_WORKER_LEASE_MS:30000}
+    heartbeat-interval-ms: ${JOBS_WORKER_HEARTBEAT_INTERVAL_MS:10000}
+    retry-delay-ms: ${JOBS_WORKER_RETRY_DELAY_MS:1000}
+    max-retry-delay-ms: ${JOBS_WORKER_MAX_RETRY_DELAY_MS:300000}
+    http-timeout-ms: ${JOBS_WORKER_HTTP_TIMEOUT_MS:600000}

@@ -38,7 +38,7 @@ public class JobController {
     }
 
     @PostMapping("/v1/executions")
-    public ResponseEntity<Execution> createExecution(@RequestHeader(value = "Idempotency-Key", required = false) String key,
+    public ResponseEntity<Execution> createExecution(@RequestHeader(value = "Idempotency-Key", required = true) String key,
                                                        @RequestBody ExecutionRequest request) throws Exception {
         Execution execution = executionService.create(key, request);
         return ResponseEntity.accepted().location(URI.create("/v1/executions/" + execution.executionId())).body(execution);
