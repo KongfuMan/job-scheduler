@@ -1,0 +1,3 @@
+com/example/jobs/JobControllerTest.class
+com/example/jobs/JobsApplicationTest.class
+com/example/jobs/MigrationIntegrityTest.class
