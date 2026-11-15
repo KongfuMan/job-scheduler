@@ -81,9 +81,12 @@ public class JobWorker {
             // An expired final attempt cannot be claimed again, so terminate it separately.
             jdbc.update("""
                     UPDATE job_executions
-                    SET status = 'FAILED', worker_id = NULL,
-                        lease_until = NULL, next_retry_at = NULL,
-                        last_error = 'Lease expired after final attempt', updated_at = statement_timestamp()
+                    SET status = 'FAILED',
+                        worker_id = NULL,
+                        lease_until = NULL,
+                        next_retry_at = NULL,
+                        last_error = 'Lease expired after final attempt',
+                        updated_at = statement_timestamp()
                     WHERE status = 'RUNNING' AND
                           lease_until <= statement_timestamp() AND
                           attempts >= max_attempts
